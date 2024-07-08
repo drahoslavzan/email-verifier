@@ -166,7 +166,10 @@ func TestCheckEmail_Disposable_override(t *testing.T) {
 		email    = address
 	)
 
-	verifier := NewVerifier().EnableSMTPCheck().AddDisposableDomains([]string{"iamdisposableemail.test"})
+	dr := newDisposableRepo()
+	dr.AddDisposableDomains([]string{"iamdisposableemail.test"})
+
+	verifier := NewVerifier().EnableSMTPCheck().EnableDisposableCheck(dr)
 	ret, err := verifier.Verify(email)
 	expected := Result{
 		Email: email,

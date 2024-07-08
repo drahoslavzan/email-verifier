@@ -2,11 +2,6 @@ package emailverifier
 
 import (
 	"strings"
-	"sync"
-)
-
-var (
-	disposableSyncDomains sync.Map // concurrent safe map to store disposable domains data
 )
 
 // IsRoleAccount checks if username is a role-based account
@@ -22,6 +17,5 @@ func (v *Verifier) IsFreeDomain(domain string) bool {
 // IsDisposable checks if domain is a disposable domain
 func (v *Verifier) IsDisposable(domain string) bool {
 	domain = domainToASCII(domain)
-	_, found := disposableSyncDomains.Load(domain)
-	return found
+	return v.disposableRepo.IsDomainDisposable(domain)
 }

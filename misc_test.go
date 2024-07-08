@@ -6,7 +6,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var verifier = NewVerifier().EnableSMTPCheck()
+type disposableRepo struct {
+	domains map[string]struct{}
+}
+
+func newDisposableRepo() *disposableRepo {
+	return &disposableRepo{map[string]struct{}{}}
+}
+
+func (m *disposableRepo) AddDisposableDomains(domains []string) {
+	for _, d := range domains {
+		m.domains[d] = struct{}{}
+	}
+}
+
+func (m *disposableRepo) IsDomainDisposable(domain string) bool {
+	_, found := m.domains[domain]
+	return found
+}
+
+var verifier = NewVerifier().EnableSMTPCheck().EnableDisposableCheck(newDisposableRepo())
 
 func TestIsFreeDomain_True(t *testing.T) {
 	domain := "gmail.com"

@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 )
 
 // updateDisposableDomains gets domains data from source's URL
-func updateDisposableDomains(source string) error {
+func updateDisposableDomains(source string, updater DisposableRepoUpdater) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	req, err := http.NewRequest("GET", source, nil)
@@ -30,7 +30,7 @@ func updateDisposableDomains(source string) error {
 
 	var domains []string
 
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
@@ -43,27 +43,7 @@ func updateDisposableDomains(source string) error {
 		return err
 	}
 
-	newDomains := make(map[string]struct{})
-	for _, v := range domains {
-		newDomains[v] = struct{}{}
-	}
+	updater.AddDisposableDomains(domains)
 
-	// clear up invalid disposable domains
-	disposableSyncDomains.Range(func(key, value interface{}) bool {
-		if _, exists := newDomains[key.(string)]; !exists {
-			disposableSyncDomains.Delete(key)
-		}
-		return true
-	})
-
-	// update new domain data
-	for _, d := range domains {
-		disposableSyncDomains.Store(d, struct{}{})
-	}
-
-	// add additionalDisposableDomains again
-	for d := range additionalDisposableDomains {
-		disposableSyncDomains.Store(d, struct{}{})
-	}
 	return nil
 }

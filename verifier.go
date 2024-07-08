@@ -6,6 +6,15 @@ import (
 	"time"
 )
 
+type DisposableRepoUpdater interface {
+	AddDisposableDomains(domains []string)
+}
+
+type DisposableRepo interface {
+	DisposableRepoUpdater
+	IsDomainDisposable(domain string) bool
+}
+
 // Verifier is an email verifier. Create one by calling NewVerifier
 type Verifier struct {
 	smtpCheckEnabled     bool                       // SMTP check enabled or disabled (disabled by default)
@@ -17,6 +26,7 @@ type Verifier struct {
 	schedule             *schedule                  // schedule represents a job schedule
 	proxyURI             string                     // use a SOCKS5 proxy to verify the email,
 	apiVerifiers         map[string]smtpAPIVerifier // currently support gmail & yahoo, further contributions are welcomed.
+	disposableRepo       DisposableRepo
 }
 
 // Result is the result of Email Verification
@@ -31,16 +41,6 @@ type Result struct {
 	RoleAccount  bool      `json:"role_account"`   // is account a role-based account
 	Free         bool      `json:"free"`           // is domain a free email domain
 	HasMxRecords bool      `json:"has_mx_records"` // whether or not MX-Records for the domain
-}
-
-// additional list of disposable domains set via users of this library
-var additionalDisposableDomains map[string]bool = map[string]bool{}
-
-// init loads disposable_domain meta data to disposableSyncDomains which are safe for concurrent use
-func init() {
-	for d := range disposableDomains {
-		disposableSyncDomains.Store(d, struct{}{})
-	}
 }
 
 // NewVerifier creates a new email verifier
@@ -104,15 +104,6 @@ func (v *Verifier) Verify(email string) (*Result, error) {
 	return &ret, nil
 }
 
-// AddDisposableDomains adds additional domains as disposable domains.
-func (v *Verifier) AddDisposableDomains(domains []string) *Verifier {
-	for _, d := range domains {
-		additionalDisposableDomains[d] = true
-		disposableSyncDomains.Store(d, struct{}{})
-	}
-	return v
-}
-
 // EnableGravatarCheck enables check gravatar,
 // we don't check gravatar by default
 func (v *Verifier) EnableGravatarCheck() *Verifier {
@@ -131,6 +122,11 @@ func (v *Verifier) DisableGravatarCheck() *Verifier {
 // we don't check smtp by default
 func (v *Verifier) EnableSMTPCheck() *Verifier {
 	v.smtpCheckEnabled = true
+	return v
+}
+
+func (v *Verifier) EnableDisposableCheck(dr DisposableRepo) *Verifier {
+	v.disposableRepo = dr
 	return v
 }
 
@@ -156,6 +152,11 @@ func (v *Verifier) DisableAPIVerifier(name string) {
 // DisableSMTPCheck disables check email by smtp
 func (v *Verifier) DisableSMTPCheck() *Verifier {
 	v.smtpCheckEnabled = false
+	return v
+}
+
+func (v *Verifier) DisableDisposableCheck() *Verifier {
+	v.disposableRepo = nil
 	return v
 }
 
@@ -189,9 +190,9 @@ func (v *Verifier) DisableDomainSuggest() *Verifier {
 func (v *Verifier) EnableAutoUpdateDisposable() *Verifier {
 	v.stopCurrentSchedule()
 	// fetch latest disposable domains before next schedule
-	_ = updateDisposableDomains(disposableDataURL)
+	_ = updateDisposableDomains(disposableDataURL, v.disposableRepo)
 	// update disposable domains records daily
-	v.schedule = newSchedule(24*time.Hour, updateDisposableDomains, disposableDataURL)
+	v.schedule = newSchedule(24*time.Hour, updateDisposableDomains, disposableDataURL, v.disposableRepo)
 	v.schedule.start()
 	return v
 }
