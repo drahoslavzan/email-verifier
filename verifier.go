@@ -190,7 +190,7 @@ func (v *Verifier) DisableDomainSuggest() *Verifier {
 func (v *Verifier) EnableAutoUpdateDisposable() *Verifier {
 	v.stopCurrentSchedule()
 	// fetch latest disposable domains before next schedule
-	_ = updateDisposableDomains(disposableDataURL, v.disposableRepo)
+	go updateDisposableDomains(disposableDataURL, v.disposableRepo)
 	// update disposable domains records daily
 	v.schedule = newSchedule(24*time.Hour, updateDisposableDomains, disposableDataURL, v.disposableRepo)
 	v.schedule.start()
