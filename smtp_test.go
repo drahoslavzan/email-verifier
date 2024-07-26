@@ -1,6 +1,7 @@
 package emailverifier
 
 import (
+	"net/http"
 	"strings"
 	"syscall"
 	"testing"
@@ -9,7 +10,7 @@ import (
 )
 
 func TestCheckSMTPUnSupportedVendor(t *testing.T) {
-	err := verifier.EnableAPIVerifier("unsupported_vendor")
+	err := verifier.EnableAPIVerifier("unsupported_vendor", http.DefaultClient)
 	assert.Error(t, err)
 }
 
@@ -75,8 +76,8 @@ func TestCheckSMTPOK_ByApi(t *testing.T) {
 			},
 		},
 	}
-	_ = verifier.EnableAPIVerifier(GMAIL)
-	_ = verifier.EnableAPIVerifier(YAHOO)
+	_ = verifier.EnableAPIVerifier(GMAIL, http.DefaultClient)
+	_ = verifier.EnableAPIVerifier(YAHOO, http.DefaultClient)
 	defer verifier.DisableAPIVerifier(GMAIL)
 	defer verifier.DisableAPIVerifier(YAHOO)
 	for _, c := range cases {
