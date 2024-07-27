@@ -11,3 +11,7 @@ type smtpAPIVerifier interface {
 	// check must be called before isSupported == true
 	check(domain, username string) (*SMTP, error)
 }
+
+type APIRateLimitError struct {
+	error
+}
