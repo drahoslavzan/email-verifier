@@ -2,6 +2,7 @@ package emailverifier
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 )
@@ -13,6 +14,10 @@ type DisposableRepoUpdater interface {
 type DisposableRepo interface {
 	DisposableRepoUpdater
 	IsDomainDisposable(domain string) bool
+}
+
+type DialerProvider interface {
+	MakeDial(network string, host string) func() (net.Conn, error)
 }
 
 // Verifier is an email verifier. Create one by calling NewVerifier
@@ -27,6 +32,7 @@ type Verifier struct {
 	proxyURI             string                     // use a SOCKS5 proxy to verify the email,
 	apiVerifiers         map[string]smtpAPIVerifier // currently support gmail & yahoo, further contributions are welcomed.
 	disposableRepo       DisposableRepo
+	dialerProvider       DialerProvider
 }
 
 // Result is the result of Email Verification
@@ -102,6 +108,17 @@ func (v *Verifier) Verify(email string) (*Result, error) {
 	}
 
 	return &ret, nil
+}
+
+func (v *Verifier) EnableCustomDialer(dp DialerProvider) *Verifier {
+	v.dialerProvider = dp
+	return v
+}
+
+// DisableGravatarCheck disables check gravatar,
+func (v *Verifier) DisableCustomDialer() *Verifier {
+	v.dialerProvider = nil
+	return v
 }
 
 // EnableGravatarCheck enables check gravatar,
