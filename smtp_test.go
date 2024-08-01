@@ -9,8 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type clientProvider struct{}
+
+func (m *clientProvider) MakeClient(host string) (*http.Client, error) {
+	return http.DefaultClient, nil
+}
+
 func TestCheckSMTPUnSupportedVendor(t *testing.T) {
-	err := verifier.EnableAPIVerifier("unsupported_vendor", http.DefaultClient)
+	err := verifier.EnableAPIVerifier("unsupported_vendor", new(clientProvider))
 	assert.Error(t, err)
 }
 
@@ -76,8 +82,8 @@ func TestCheckSMTPOK_ByApi(t *testing.T) {
 			},
 		},
 	}
-	_ = verifier.EnableAPIVerifier(GMAIL, http.DefaultClient)
-	_ = verifier.EnableAPIVerifier(YAHOO, http.DefaultClient)
+	_ = verifier.EnableAPIVerifier(GMAIL, new(clientProvider))
+	_ = verifier.EnableAPIVerifier(YAHOO, new(clientProvider))
 	defer verifier.DisableAPIVerifier(GMAIL)
 	defer verifier.DisableAPIVerifier(YAHOO)
 	for _, c := range cases {

@@ -20,6 +20,10 @@ type DialerProvider interface {
 	MakeDial(network string, host string) func() (net.Conn, error)
 }
 
+type ClientProvider interface {
+	MakeClient(host string) (*http.Client, error)
+}
+
 // Verifier is an email verifier. Create one by calling NewVerifier
 type Verifier struct {
 	smtpCheckEnabled     bool                       // SMTP check enabled or disabled (disabled by default)
@@ -150,12 +154,12 @@ func (v *Verifier) EnableDisposableCheck(dr DisposableRepo) *Verifier {
 // EnableAPIVerifier API verifier is activated when EnableAPIVerifier for the target vendor.
 // ** Please know ** that this is a tricky way (but relatively stable) to check if target vendor's email exists.
 // If you use this feature in a production environment, please ensure that you have sufficient backup measures in place, as this may encounter rate limiting or other API issues.
-func (v *Verifier) EnableAPIVerifier(name string, client *http.Client) error {
+func (v *Verifier) EnableAPIVerifier(name string, cp ClientProvider) error {
 	switch name {
 	case GMAIL:
-		v.apiVerifiers[GMAIL] = newGmailAPIVerifier(client)
+		v.apiVerifiers[GMAIL] = newGmailAPIVerifier(http.DefaultClient)
 	case YAHOO:
-		v.apiVerifiers[YAHOO] = newYahooAPIVerifier(client)
+		v.apiVerifiers[YAHOO] = newYahooAPIVerifier(cp)
 	default:
 		return fmt.Errorf("unsupported to enable the API verifier for vendor: %s", name)
 	}

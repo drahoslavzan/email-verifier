@@ -22,17 +22,14 @@ const (
 // Check yahoo email exists by their login & registration page.
 // See https://login.yahoo.com
 // See https://login.yahoo.com/account/create
-func newYahooAPIVerifier(client *http.Client) smtpAPIVerifier {
-	if client == nil {
-		client = http.DefaultClient
-	}
+func newYahooAPIVerifier(cp ClientProvider) smtpAPIVerifier {
 	return yahoo{
-		client: client,
+		cp: cp,
 	}
 }
 
 type yahoo struct {
-	client *http.Client
+	cp ClientProvider
 }
 
 type yahooValidateReq struct {
@@ -55,7 +52,12 @@ func (y yahoo) isSupported(host string) bool {
 }
 
 func (y yahoo) check(domain, username string) (*SMTP, error) {
-	cookies, signUpPageRespBytes, err := y.toSignUpPage()
+	client, err := y.cp.MakeClient(domain)
+	if err != nil {
+		return nil, err
+	}
+
+	cookies, signUpPageRespBytes, err := y.toSignUpPage(client)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +75,7 @@ func (y yahoo) check(domain, username string) (*SMTP, error) {
 		return nil, errors.New("yahoo check by api, no sessionIndex")
 	}
 
-	yahooErrResp, err := y.sendValidateRequest(yahooValidateReq{
+	yahooErrResp, err := y.sendValidateRequest(client, yahooValidateReq{
 		Domain:       domain,
 		Username:     username,
 		Acrumb:       acrumb,
@@ -108,7 +110,7 @@ func checkUsernameExists(resp yahooErrorResp) bool {
 	return false
 }
 
-func (y yahoo) sendValidateRequest(req yahooValidateReq) (yahooErrorResp, error) {
+func (y yahoo) sendValidateRequest(client *http.Client, req yahooValidateReq) (yahooErrorResp, error) {
 	var res yahooErrorResp
 	data, err := json.Marshal(struct {
 		Acrumb       string `json:"acrumb"`
@@ -137,7 +139,8 @@ func (y yahoo) sendValidateRequest(req yahooValidateReq) (yahooErrorResp, error)
 	}
 	request.Header.Add("X-Requested-With", "XMLHttpRequest")
 	request.Header.Add("Content-Type", "application/json; charset=UTF-8")
-	resp, err := y.client.Do(request)
+
+	resp, err := client.Do(request)
 	if err != nil {
 		return res, err
 	}
@@ -154,7 +157,7 @@ func (y yahoo) sendValidateRequest(req yahooValidateReq) (yahooErrorResp, error)
 	return res, nil
 }
 
-func (y yahoo) toSignUpPage() ([]*http.Cookie, []byte, error) {
+func (y yahoo) toSignUpPage(client *http.Client) ([]*http.Cookie, []byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, SIGNUP_PAGE, nil)
@@ -162,7 +165,7 @@ func (y yahoo) toSignUpPage() ([]*http.Cookie, []byte, error) {
 		return nil, nil, err
 	}
 	request.Header.Add("User-Agent", USER_AGENT)
-	resp, err := y.client.Do(request)
+	resp, err := client.Do(request)
 	if err != nil {
 		return nil, nil, err
 	}
