@@ -27,13 +27,14 @@ const (
 
 // LookupError is an MX dns records lookup error
 type LookupError struct {
+	Code    int
 	Message string `json:"message" xml:"message"`
 	Details string `json:"details" xml:"details"`
 }
 
 // newLookupError creates a new LookupError reference and returns it
-func newLookupError(message, details string) *LookupError {
-	return &LookupError{message, details}
+func newLookupError(code int, message, details string) *LookupError {
+	return &LookupError{code, message, details}
 }
 
 func (e *LookupError) Error() string {
@@ -47,13 +48,13 @@ func ParseSMTPError(err error) *LookupError {
 
 	// Verify the length of the error before reading nil indexes
 	if len(errStr) < 3 {
-		return parseBasicErr(err)
+		return parseBasicErr(0, err)
 	}
 
 	// Strips out the status code string and converts to an integer for parsing
 	status, convErr := strconv.Atoi(string([]rune(errStr)[0:3]))
 	if convErr != nil {
-		return parseBasicErr(err)
+		return parseBasicErr(status, err)
 	}
 
 	// If the status code is above 400 there was an error and we should return it
@@ -71,16 +72,16 @@ func ParseSMTPError(err error) *LookupError {
 			"recipient rejected",
 			"address rejected",
 			"no mailbox") {
-			return newLookupError(ErrServerUnavailable, errStr)
+			return newLookupError(status, ErrServerUnavailable, errStr)
 		}
 
 		switch status {
 		case 421:
-			return newLookupError(ErrTryAgainLater, errStr)
+			return newLookupError(status, ErrTryAgainLater, errStr)
 		case 450:
-			return newLookupError(ErrMailboxBusy, errStr)
+			return newLookupError(status, ErrMailboxBusy, errStr)
 		case 451:
-			return newLookupError(ErrExceededMessagingLimits, errStr)
+			return newLookupError(status, ErrExceededMessagingLimits, errStr)
 		case 452:
 			if insContains(errStr,
 				"full",
@@ -88,11 +89,11 @@ func ParseSMTPError(err error) *LookupError {
 				"over quota",
 				"insufficient",
 			) {
-				return newLookupError(ErrFullInbox, errStr)
+				return newLookupError(status, ErrFullInbox, errStr)
 			}
-			return newLookupError(ErrTooManyRCPT, errStr)
+			return newLookupError(status, ErrTooManyRCPT, errStr)
 		case 503:
-			return newLookupError(ErrNeedMAILBeforeRCPT, errStr)
+			return newLookupError(status, ErrNeedMAILBeforeRCPT, errStr)
 		case 550: // 550 is Mailbox Unavailable - usually undeliverable, ref: https://blog.mailtrap.io/550-5-1-1-rejected-fix/
 			if insContains(errStr,
 				"spamhaus",
@@ -103,19 +104,19 @@ func ParseSMTPError(err error) *LookupError {
 				"blocked",
 				"block list",
 				"denied") {
-				return newLookupError(ErrBlocked, errStr)
+				return newLookupError(status, ErrBlocked, errStr)
 			}
-			return newLookupError(ErrServerUnavailable, errStr)
+			return newLookupError(status, ErrServerUnavailable, errStr)
 		case 551:
-			return newLookupError(ErrRCPTHasMoved, errStr)
+			return newLookupError(status, ErrRCPTHasMoved, errStr)
 		case 552:
-			return newLookupError(ErrFullInbox, errStr)
+			return newLookupError(status, ErrFullInbox, errStr)
 		case 553:
-			return newLookupError(ErrNoRelay, errStr)
+			return newLookupError(status, ErrNoRelay, errStr)
 		case 554:
-			return newLookupError(ErrNotAllowed, errStr)
+			return newLookupError(status, ErrNotAllowed, errStr)
 		default:
-			return parseBasicErr(err)
+			return parseBasicErr(status, err)
 		}
 	}
 	return nil
@@ -123,7 +124,7 @@ func ParseSMTPError(err error) *LookupError {
 
 // parseBasicErr parses a basic MX record response and returns
 // a more understandable LookupError
-func parseBasicErr(err error) *LookupError {
+func parseBasicErr(status int, err error) *LookupError {
 	errStr := err.Error()
 
 	// Return a more understandable error
@@ -135,15 +136,15 @@ func parseBasicErr(err error) *LookupError {
 		"banned",
 		"blocked",
 		"denied"):
-		return newLookupError(ErrBlocked, errStr)
+		return newLookupError(status, ErrBlocked, errStr)
 	case insContains(errStr, "timeout"):
-		return newLookupError(ErrTimeout, errStr)
+		return newLookupError(status, ErrTimeout, errStr)
 	case insContains(errStr, "no such host"):
-		return newLookupError(ErrNoSuchHost, errStr)
+		return newLookupError(status, ErrNoSuchHost, errStr)
 	case insContains(errStr, "unavailable"):
-		return newLookupError(ErrServerUnavailable, errStr)
+		return newLookupError(status, ErrServerUnavailable, errStr)
 	default:
-		return newLookupError(errStr, errStr)
+		return newLookupError(status, errStr, errStr)
 	}
 }
 
