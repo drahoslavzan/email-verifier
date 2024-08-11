@@ -1,6 +1,7 @@
 package emailverifier
 
 import (
+	"net"
 	"net/http"
 	"strings"
 	"syscall"
@@ -221,7 +222,7 @@ func TestCheckSMTPOK_HostNotExists(t *testing.T) {
 
 func TestNewSMTPClientOK(t *testing.T) {
 	domain := "gmail.com"
-	ret, _, err := newSMTPClient(domain, "", nil)
+	ret, _, err := newSMTPClient(domain, "", net.DefaultResolver, nil)
 	assert.NotNil(t, ret)
 	assert.Nil(t, err)
 }
@@ -229,14 +230,14 @@ func TestNewSMTPClientOK(t *testing.T) {
 func TestNewSMTPClientFailed_WithInvalidProxy(t *testing.T) {
 	domain := "gmail.com"
 	proxyURI := "socks5://user:password@127.0.0.1:1080?timeout=5s"
-	ret, _, err := newSMTPClient(domain, proxyURI, nil)
+	ret, _, err := newSMTPClient(domain, proxyURI, net.DefaultResolver, nil)
 	assert.Nil(t, ret)
 	assert.Error(t, err, syscall.ECONNREFUSED)
 }
 
 func TestNewSMTPClientFailed(t *testing.T) {
 	domain := "zzzz171777.com"
-	ret, _, err := newSMTPClient(domain, "", nil)
+	ret, _, err := newSMTPClient(domain, "", net.DefaultResolver, nil)
 	assert.Nil(t, ret)
 	assert.Error(t, err)
 }

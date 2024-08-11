@@ -37,6 +37,7 @@ type Verifier struct {
 	apiVerifiers         map[string]smtpAPIVerifier // currently support gmail & yahoo, further contributions are welcomed.
 	disposableRepo       DisposableRepo
 	dialerProvider       DialerProvider
+	mxResolver           *net.Resolver
 }
 
 // Result is the result of Email Verification
@@ -60,6 +61,7 @@ func NewVerifier() *Verifier {
 		helloName:            defaultHelloName,
 		catchAllCheckEnabled: true,
 		apiVerifiers:         map[string]smtpAPIVerifier{},
+		mxResolver:           net.DefaultResolver,
 	}
 }
 
@@ -112,6 +114,16 @@ func (v *Verifier) Verify(email string) (*Result, error) {
 	}
 
 	return &ret, nil
+}
+
+func (v *Verifier) EnableMXResolver(mx *net.Resolver) *Verifier {
+	v.mxResolver = mx
+	return v
+}
+
+func (v *Verifier) DisableMXResolver() *Verifier {
+	v.mxResolver = net.DefaultResolver
+	return v
 }
 
 func (v *Verifier) EnableCustomDialer(dp DialerProvider) *Verifier {

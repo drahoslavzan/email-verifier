@@ -1,6 +1,7 @@
 package emailverifier
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -38,7 +39,7 @@ func (v *Verifier) CheckSMTP(domain, username string) (*SMTP, error) {
 	email := fmt.Sprintf("%s@%s", username, domain)
 
 	// Dial any SMTP server that will accept a connection
-	client, mx, err := newSMTPClient(domain, v.proxyURI, v.dialerProvider)
+	client, mx, err := newSMTPClient(domain, v.proxyURI, v.mxResolver, v.dialerProvider)
 	if err != nil {
 		return &ret, ParseSMTPError(err)
 	}
@@ -112,9 +113,9 @@ func (v *Verifier) CheckSMTP(domain, username string) (*SMTP, error) {
 }
 
 // newSMTPClient generates a new available SMTP client
-func newSMTPClient(domain, proxyURI string, dp DialerProvider) (*smtp.Client, *net.MX, error) {
+func newSMTPClient(domain, proxyURI string, mx *net.Resolver, dp DialerProvider) (*smtp.Client, *net.MX, error) {
 	domain = DomainToASCII(domain)
-	mxRecords, err := net.LookupMX(domain)
+	mxRecords, err := mx.LookupMX(context.Background(), domain)
 	if err != nil {
 		return nil, nil, err
 	}
