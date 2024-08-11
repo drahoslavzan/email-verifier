@@ -19,9 +19,9 @@ func splitDomain(domain string) (string, string) {
 	return "", parts[0]
 }
 
-// domainToASCII converts any internationalized domain names to ASCII
+// DomainToASCII converts any internationalized domain names to ASCII
 // reference: https://en.wikipedia.org/wiki/Punycode
-func domainToASCII(domain string) string {
+func DomainToASCII(domain string) string {
 	asciiDomain, err := idna.ToASCII(domain)
 	if err != nil {
 		return domain

@@ -113,7 +113,7 @@ func (v *Verifier) CheckSMTP(domain, username string) (*SMTP, error) {
 
 // newSMTPClient generates a new available SMTP client
 func newSMTPClient(domain, proxyURI string, dp DialerProvider) (*smtp.Client, *net.MX, error) {
-	domain = domainToASCII(domain)
+	domain = DomainToASCII(domain)
 	mxRecords, err := net.LookupMX(domain)
 	if err != nil {
 		return nil, nil, err

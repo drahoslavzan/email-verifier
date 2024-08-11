@@ -9,14 +9,14 @@ import (
 
 func TestDomainToASCII(t *testing.T) {
 	domain := "testingΣ✪✯☭➳卐.org"
-	ret := domainToASCII(domain)
+	ret := DomainToASCII(domain)
 	expected := "xn--testing-0if2960fjccubz8h9z13a.org"
 	assert.Equal(t, expected, ret)
 }
 
 func TestDomainToASCII_NormalDomain(t *testing.T) {
 	domain := "testing.org"
-	ret := domainToASCII(domain)
+	ret := DomainToASCII(domain)
 	expected := "testing.org"
 	assert.Equal(t, expected, ret)
 }

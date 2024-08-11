@@ -16,6 +16,6 @@ func (v *Verifier) IsFreeDomain(domain string) bool {
 
 // IsDisposable checks if domain is a disposable domain
 func (v *Verifier) IsDisposable(domain string) bool {
-	domain = domainToASCII(domain)
+	domain = DomainToASCII(domain)
 	return v.disposableRepo.IsDomainDisposable(domain)
 }

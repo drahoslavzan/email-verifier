@@ -10,7 +10,7 @@ type Mx struct {
 
 // CheckMX will return the DNS MX records for the given domain name sorted by preference.
 func (v *Verifier) CheckMX(domain string) (*Mx, error) {
-	domain = domainToASCII(domain)
+	domain = DomainToASCII(domain)
 	mx, err := net.LookupMX(domain)
 	if err != nil && len(mx) == 0 {
 		return nil, err
