@@ -8,7 +8,7 @@ import (
 )
 
 func TestYahooCheckByAPI(t *testing.T) {
-	yahooAPIVerifier := newYahooAPIVerifier(nil)
+	yahooAPIVerifier := newYahooAPIVerifier(&clientProvider{})
 	t.Run("email exists", func(tt *testing.T) {
 		res, err := yahooAPIVerifier.check("yahoo.com", "hello")
 		assert.NoError(t, err)
