@@ -1,27 +1,28 @@
 package emailverifier
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 type disposableRepo struct {
-	domains map[string]struct{}
+	domains sync.Map
 }
 
 func newDisposableRepo() *disposableRepo {
-	return &disposableRepo{map[string]struct{}{}}
+	return &disposableRepo{}
 }
 
 func (m *disposableRepo) AddDisposableDomains(domains []string) {
 	for _, d := range domains {
-		m.domains[d] = struct{}{}
+		m.domains.Store(d, struct{}{})
 	}
 }
 
 func (m *disposableRepo) IsDomainDisposable(domain string) bool {
-	_, found := m.domains[domain]
+	_, found := m.domains.Load(domain)
 	return found
 }
 
