@@ -73,7 +73,7 @@ func TestParseError_Code401(t *testing.T) {
 	err := errors.New(errStr)
 	le := ParseSMTPError(err)
 
-	assert.Equal(t, &LookupError{Details: errStr, Message: errStr}, le)
+	assert.Equal(t, &LookupError{Code: 401, Details: errStr, Message: errStr}, le)
 }
 
 func TestParseError_Code421(t *testing.T) {

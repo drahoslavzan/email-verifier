@@ -34,12 +34,30 @@ func (v *Verifier) CheckSMTP(domain, username string) (*SMTP, error) {
 		return nil, nil
 	}
 
+	domain = DomainToASCII(domain)
+	mxRecords, err := v.mxResolver.LookupMX(context.Background(), domain)
+	if err != nil {
+		return &SMTP{}, ParseSMTPError(err)
+	}
+	if len(mxRecords) == 0 {
+		return &SMTP{}, newLookupError(0, ErrNoSuchHost, "No MX records found")
+	}
+
+	hosts := make([]string, len(mxRecords))
+	for i, r := range mxRecords {
+		hosts[i] = r.Host
+	}
+
+	return v.CheckSMTPForMX(hosts, domain, username)
+}
+
+func (v *Verifier) CheckSMTPForMX(hosts []string, domain, username string) (*SMTP, error) {
 	var ret SMTP
 	var err error
 	email := fmt.Sprintf("%s@%s", username, domain)
 
 	// Dial any SMTP server that will accept a connection
-	client, mx, err := newSMTPClient(domain, v.proxyURI, v.mxResolver, v.dialerProvider)
+	client, mx, err := newSMTPClient(hosts, v.proxyURI, v.dialerProvider)
 	if err != nil {
 		return &ret, ParseSMTPError(err)
 	}
@@ -49,7 +67,7 @@ func (v *Verifier) CheckSMTP(domain, username string) (*SMTP, error) {
 
 	// Check by api when enabled and host recognized.
 	for _, apiVerifier := range v.apiVerifiers {
-		if apiVerifier.isSupported(strings.ToLower(mx.Host)) {
+		if apiVerifier.isSupported(strings.ToLower(mx)) {
 			return apiVerifier.check(domain, username)
 		}
 	}
@@ -113,19 +131,10 @@ func (v *Verifier) CheckSMTP(domain, username string) (*SMTP, error) {
 }
 
 // newSMTPClient generates a new available SMTP client
-func newSMTPClient(domain, proxyURI string, mx *net.Resolver, dp DialerProvider) (*smtp.Client, *net.MX, error) {
-	domain = DomainToASCII(domain)
-	mxRecords, err := mx.LookupMX(context.Background(), domain)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if len(mxRecords) == 0 {
-		return nil, nil, errors.New("No MX records found")
-	}
+func newSMTPClient(hosts []string, proxyURI string, dp DialerProvider) (*smtp.Client, string, error) {
 	// Create a channel for receiving response from
 	ch := make(chan interface{}, 1)
-	selectedMXCh := make(chan *net.MX, 1)
+	selectedMXCh := make(chan string, 1)
 
 	// Done indicates if we're still waiting on dial responses
 	var done bool
@@ -134,8 +143,8 @@ func newSMTPClient(domain, proxyURI string, mx *net.Resolver, dp DialerProvider)
 	var mutex sync.Mutex
 
 	// Attempt to connect to all SMTP servers concurrently
-	for i, r := range mxRecords {
-		addr := r.Host + smtpPort
+	for i, h := range hosts {
+		addr := h + smtpPort
 		index := i
 		go func() {
 			c, err := dialSMTP(addr, proxyURI, dp)
@@ -152,7 +161,7 @@ func newSMTPClient(domain, proxyURI string, mx *net.Resolver, dp DialerProvider)
 			case !done:
 				done = true
 				ch <- c
-				selectedMXCh <- mxRecords[index]
+				selectedMXCh <- hosts[index]
 			default:
 				c.Close()
 			}
@@ -169,11 +178,11 @@ func newSMTPClient(domain, proxyURI string, mx *net.Resolver, dp DialerProvider)
 			return r, <-selectedMXCh, nil
 		case error:
 			errs = append(errs, r)
-			if len(errs) == len(mxRecords) {
-				return nil, nil, errs[0]
+			if len(errs) == len(hosts) {
+				return nil, "", errs[0]
 			}
 		default:
-			return nil, nil, errors.New("Unexpected response dialing SMTP server")
+			return nil, "", errors.New("Unexpected response dialing SMTP server")
 		}
 	}
 
