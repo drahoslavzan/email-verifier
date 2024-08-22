@@ -127,7 +127,7 @@ func (v *Verifier) CheckSMTPForMX(hosts []string, domain, username string) (*SMT
 		ret.Deliverable = true
 	}
 
-	return &ret, err
+	return &ret, ParseSMTPError(err)
 }
 
 // newSMTPClient generates a new available SMTP client
