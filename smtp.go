@@ -22,6 +22,7 @@ type SMTP struct {
 	CatchAll    bool `json:"catch_all"`   // does the domain have a catch-all email address?
 	Deliverable bool `json:"deliverable"` // can send an email to the email server?
 	Disabled    bool `json:"disabled"`    // is the email blocked or disabled by the provider?
+	UsingAPI    bool `json:"api"`
 }
 
 // CheckSMTP performs an email verification on the passed domain via SMTP
@@ -68,7 +69,9 @@ func (v *Verifier) CheckSMTPForMX(hosts []string, domain, username string) (*SMT
 	// Check by api when enabled and host recognized.
 	for _, apiVerifier := range v.apiVerifiers {
 		if apiVerifier.isSupported(strings.ToLower(mx)) {
-			return apiVerifier.check(domain, username)
+			res, err := apiVerifier.check(domain, username)
+			res.UsingAPI = true
+			return res, err
 		}
 	}
 
