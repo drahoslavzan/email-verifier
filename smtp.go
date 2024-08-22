@@ -123,11 +123,13 @@ func (v *Verifier) CheckSMTPForMX(hosts []string, domain, username string) (*SMT
 		return &ret, nil
 	}
 
-	if err = client.Rcpt(email); err == nil {
+	if err = client.Rcpt(email); err != nil {
+		err = ParseSMTPError(err)
+	} else {
 		ret.Deliverable = true
 	}
 
-	return &ret, ParseSMTPError(err)
+	return &ret, err
 }
 
 // newSMTPClient generates a new available SMTP client
