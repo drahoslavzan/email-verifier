@@ -101,14 +101,14 @@ func (v *Verifier) CheckSMTPForMX(hosts []string, domain, username string) (*SMT
 					ret.FullInbox = true
 				case ErrNotAllowed:
 					ret.Disabled = true
+
 				// If The client typically receives a `550 5.1.1` code as a reply to RCPT TO command,
 				// In most cases, this is because the recipient address does not exist.
 				case ErrServerUnavailable:
-					ret.CatchAll = false
+					fallthrough
 				default:
-
+					ret.CatchAll = false
 				}
-
 			}
 		}
 
