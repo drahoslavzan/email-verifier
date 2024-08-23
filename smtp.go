@@ -88,10 +88,9 @@ func (v *Verifier) CheckSMTPForMX(hosts []string, domain, username string) (*SMT
 	// Host exists if we've successfully formed a connection
 	ret.HostExists = true
 
-	// Default sets catch-all to true
-	ret.CatchAll = true
+	if v.catchAllCheckEnabled && !v.IsFreeDomain(domain) {
+		ret.CatchAll = true
 
-	if v.catchAllCheckEnabled {
 		// Checks the deliver ability of a randomly generated address in
 		// order to verify the existence of a catch-all and etc.
 		randomEmail := GenerateRandomEmail(domain)
