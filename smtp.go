@@ -70,7 +70,10 @@ func (v *Verifier) CheckSMTPForMX(hosts []string, domain, username string) (*SMT
 	for _, apiVerifier := range v.apiVerifiers {
 		if apiVerifier.isSupported(strings.ToLower(mx)) {
 			res, err := apiVerifier.check(domain, username)
-			res.UsingAPI = true
+			if res != nil {
+				res.UsingAPI = true
+			}
+
 			return res, err
 		}
 	}
