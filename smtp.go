@@ -52,30 +52,36 @@ func (v *Verifier) CheckSMTP(domain, username string) (*SMTP, error) {
 }
 
 func (v *Verifier) CheckSMTPForMX(hosts []string, domain, username string) (*SMTP, error) {
+	if len(hosts) < 1 {
+		return nil, nil
+	}
+
+	// Check by api when enabled and host recognized.
+	for _, apiVerifier := range v.apiVerifiers {
+		for _, mx := range hosts {
+			if apiVerifier.isSupported(strings.ToLower(mx)) {
+				res, err := apiVerifier.check(domain, username)
+				if res != nil {
+					res.UsingAPI = true
+				}
+
+				return res, err
+			}
+		}
+	}
+
 	var ret SMTP
 	var err error
 	email := fmt.Sprintf("%s@%s", username, domain)
 
 	// Dial any SMTP server that will accept a connection
-	client, mx, err := newSMTPClient(hosts, v.proxyURI, v.dialerProvider)
+	client, _, err := newSMTPClient(hosts, v.proxyURI, v.dialerProvider)
 	if err != nil {
 		return &ret, ParseSMTPError(err)
 	}
 
 	// Defer quit the SMTP connection
 	defer client.Quit()
-
-	// Check by api when enabled and host recognized.
-	for _, apiVerifier := range v.apiVerifiers {
-		if apiVerifier.isSupported(strings.ToLower(mx)) {
-			res, err := apiVerifier.check(domain, username)
-			if res != nil {
-				res.UsingAPI = true
-			}
-
-			return res, err
-		}
-	}
 
 	// Sets the HELO/EHLO hostname
 	if err = client.Hello(v.helloName); err != nil {
