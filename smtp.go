@@ -63,7 +63,7 @@ func (v *Verifier) CheckSMTPForMX(hosts []string, domain, username string) (*SMT
 	}
 
 	// Defer quit the SMTP connection
-	defer client.Close()
+	defer client.Quit()
 
 	// Check by api when enabled and host recognized.
 	for _, apiVerifier := range v.apiVerifiers {
@@ -81,8 +81,6 @@ func (v *Verifier) CheckSMTPForMX(hosts []string, domain, username string) (*SMT
 	if err = client.Hello(v.helloName); err != nil {
 		return &ret, ParseSMTPError(err)
 	}
-
-	defer client.Quit()
 
 	// Sets the from email
 	if err = client.Mail(v.fromEmail); err != nil {
