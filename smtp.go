@@ -9,7 +9,6 @@ import (
 	"net/smtp"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/net/proxy"
@@ -141,60 +140,24 @@ func (v *Verifier) CheckSMTPForMX(hosts []string, domain, username string) (*SMT
 
 // newSMTPClient generates a new available SMTP client
 func newSMTPClient(hosts []string, proxyURI string, dp DialerProvider) (*smtp.Client, string, error) {
-	// Create a channel for receiving response from
-	ch := make(chan interface{}, 1)
-	selectedMXCh := make(chan string, 1)
-
-	// Done indicates if we're still waiting on dial responses
-	var done bool
-
-	// mutex for data race
-	var mutex sync.Mutex
-
-	// Attempt to connect to all SMTP servers concurrently
-	for i, h := range hosts {
-		addr := h + smtpPort
-		index := i
-		go func() {
-			c, err := dialSMTP(addr, proxyURI, dp)
-			if err != nil {
-				if !done {
-					ch <- err
-				}
-				return
-			}
-
-			// Place the client on the channel or close it
-			mutex.Lock()
-			switch {
-			case !done:
-				done = true
-				ch <- c
-				selectedMXCh <- hosts[index]
-			default:
-				c.Close()
-			}
-			mutex.Unlock()
-		}()
-	}
-
-	// Collect errors or return a client
 	var errs []error
-	for {
-		res := <-ch
-		switch r := res.(type) {
-		case *smtp.Client:
-			return r, <-selectedMXCh, nil
-		case error:
-			errs = append(errs, r)
-			if len(errs) == len(hosts) {
-				return nil, "", errs[0]
-			}
-		default:
-			return nil, "", errors.New("Unexpected response dialing SMTP server")
+	for _, h := range hosts {
+		addr := h + smtpPort
+
+		c, err := dialSMTP(addr, proxyURI, dp)
+		if err != nil {
+			errs = append(errs, err)
+			continue
 		}
+
+		return c, h, nil
 	}
 
+	if len(errs) > 0 {
+		return nil, "", errs[0]
+	}
+
+	return nil, "", errors.New("Unexpected response dialing SMTP server")
 }
 
 // dialSMTP is a timeout wrapper for smtp.Dial. It attempts to dial an
